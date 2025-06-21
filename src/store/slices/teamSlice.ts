@@ -1,11 +1,27 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
+export interface Player {
+  id: number;
+  first_name: string;
+  last_name: string;
+  position: string | null;
+  height: string | null;
+  weight: string | null;
+  jersey_number: string | null;
+  college: string | null;
+  country: string | null;
+  draft_year: number | null;
+  draft_round: number | null;
+  draft_number: number | null;
+  
+}
 export type Team = {
   id: string;
   name: string;
   playerCount: number;
   region: string;
   country: string;
+  players : Player[]
 };
 
 const loadTeams = (): Team[] => {

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
 import { addTeam, deleteTeam, Team, updateTeam } from '@/store/slices/teamSlice'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-
+import { usePlayers } from '@/hooks/usePlayers'
 
 const schema = z.object({
   name: z.string().min(1, 'Team name is required'),
@@ -21,47 +21,101 @@ type FormData = z.infer<typeof schema>
 export default function CreateTeamPage() {
   const dispatch = useDispatch()
   const teams = useSelector((state: RootState) => state.teams)
+  const { data: allPlayers = [] } = usePlayers({ search: '' })
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
 
-  const createdTeams = localStorage.getItem('teams')
-    ? JSON.parse(localStorage.getItem('teams') || '[]')
-    : ([] as Team[])
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const isEditing = !!editingTeam
+
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
     reset,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      playerCount: 5,
+    },
   })
 
+  const playerCount = watch('playerCount')
+
+  // Get all players already assigned to any team
+  const assignedPlayerIds = teams.flatMap((team) =>
+    team.players?.map((p) => p.id) || []
+  )
+
+  const currentTeamPlayerIds = editingTeam?.players?.map(p => p.id) || []
+
+  const unassignedPlayers = allPlayers.filter((player) =>
+    !assignedPlayerIds.includes(player.id) || currentTeamPlayerIds.includes(player.id)
+  )
+
+  // Keep selected players in range
+  useEffect(() => {
+    setSelectedPlayerIds((prev) => prev.slice(0, playerCount))
+  }, [playerCount])
+
   const onSubmit = (data: FormData) => {
-    try {
-      // Check if team name already exists
-      if (teams.some((t) => t.name === data.name)) {
-        setError('Team name must be unique')
-        return
-      }
+    const selectedPlayers = allPlayers.filter((p) =>
+      selectedPlayerIds.includes(p.id.toString())
+    )
 
-      dispatch(addTeam(data))
-      reset()
-      setError(null)
-      setIsModalOpen(false)
-    } catch (err: any) {
-      setError(err.message)
+    if (!isEditing && teams.some((t) => t.name === data.name)) {
+      setError('Team name must be unique')
+      return
     }
-  }
-  const handleDelete = (id: string) => {
-    dispatch(deleteTeam(id))
 
+    if (isEditing && editingTeam) {
+      dispatch(updateTeam({
+        id: editingTeam.id,
+        data: {
+          name: data.name,
+          playerCount: data.playerCount,
+          region: data.region,
+          country: data.country,
+          players: selectedPlayers,
+        },
+      }))
+    } else {
+      const newTeam: Team = {
+        id: crypto.randomUUID(),
+        name: data.name,
+        playerCount: data.playerCount,
+        region: data.region,
+        country: data.country,
+        players: selectedPlayers,
+      }
+      dispatch(addTeam(newTeam))
+    }
+
+    reset()
+    setSelectedPlayerIds([])
+    setEditingTeam(null)
+    setIsModalOpen(false)
   }
 
   const handleEdit = (team: Team) => {
-    console.log('Editing team:', team);
+    setIsModalOpen(true)
     setEditingTeam(team)
+    reset({
+      name: team.name,
+      playerCount: team.playerCount,
+      region: team.region,
+      country: team.country,
+    })
+    setSelectedPlayerIds(team.players?.map(p => p.id) || [])
+  }
+
+
+  const handleDelete = (id: string) => {
+    dispatch(deleteTeam(id))
   }
 
   return (
@@ -75,155 +129,107 @@ export default function CreateTeamPage() {
         + New Team
       </button>
 
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
           <form
             onSubmit={handleSubmit(onSubmit)}
-            className="bg-slate-50 p-6 rounded shadow w-[400px] space-y-4"
+            className="bg-white p-6 rounded shadow w-[400px] space-y-4"
           >
             <h2 className="text-xl font-semibold">New Team</h2>
 
-            <input
-              {...register('name')}
-              placeholder="Team Name"
-              className="w-full border p-2 rounded"
-            />
+            <input {...register('name')} placeholder="Team Name" className="w-full border p-2 rounded" />
             {errors.name && <p className="text-red-500">{errors.name.message}</p>}
 
-            <input
-              type="number"
-              {...register('playerCount')}
-              placeholder="Player Count"
-              className="w-full border p-2 rounded "
-            />
-            {errors.playerCount && (
-              <p className="text-red-500">{errors.playerCount.message}</p>
-            )}
+            <input type="number" {...register('playerCount')} placeholder="Player Count" className="w-full border p-2 rounded" />
+            {errors.playerCount && <p className="text-red-500">{errors.playerCount.message}</p>}
 
-            <input
-              {...register('region')}
-              placeholder="Region"
-              className="w-full border p-2 rounded "
-            />
+            <input {...register('region')} placeholder="Region" className="w-full border p-2 rounded" />
             {errors.region && <p className="text-red-500">{errors.region.message}</p>}
 
-            <input
-              {...register('country')}
-              placeholder="Country"
-              className="w-full border p-2 rounded "
-            />
+            <input {...register('country')} placeholder="Country" className="w-full border p-2 rounded" />
             {errors.country && <p className="text-red-500">{errors.country.message}</p>}
+
+            {/* Player Picker */}
+            {unassignedPlayers.length > 0 && (
+              <div>
+                <label className="font-medium">Select {playerCount} Players:</label>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border p-2 rounded mt-2">
+                  {unassignedPlayers.slice(0, 30).map((player) => {
+                    const isSelected = selectedPlayerIds.includes(player.id)
+                    const disabled = !isSelected && selectedPlayerIds.length >= playerCount
+
+                    return (
+                      <label key={player.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={disabled}
+                          onChange={() => {
+                            if (isSelected) {
+                              setSelectedPlayerIds((prev) =>
+                                prev.filter((id) => id !== player.id)
+                              )
+                            } else {
+                              setSelectedPlayerIds((prev) => [...prev, player.id])
+                            }
+                          }}
+                        />
+                        {player.first_name} {player.last_name}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {error && <p className="text-red-500">{error}</p>}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsModalOpen(false)
                   reset()
+                  setSelectedPlayerIds([])
+                  setEditingTeam(null)
                   setError(null)
                 }}
                 className="px-4 py-2 border rounded"
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded"
-              >
+              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">
                 Create
               </button>
             </div>
           </form>
         </div>
       )}
-      {editingTeam && (
-        <div className="mt-4 p-4 border rounded bg-gray-50 max-w-md">
-          <h2 className="font-bold mb-2">Edit Team</h2>
-          <input
-            type="text"
-            value={editingTeam.name}
-            onChange={(e) => setEditingTeam({ ...editingTeam, name: e.target.value })}
-            className="border p-2 rounded w-full mb-2"
-          />
-          {/* Add inputs for other editable fields, e.g., playerCount, region, country */}
-          <input
-            type="number"
-            value={editingTeam.playerCount}
-            onChange={(e) =>
-              setEditingTeam({ ...editingTeam, playerCount: Number(e.target.value) })
-            }
-            className="border p-2 rounded w-full mb-2"
-          />
-          <input
-            type="text"
-            value={editingTeam.region}
-            onChange={(e) => setEditingTeam({ ...editingTeam, region: e.target.value })}
-            className="border p-2 rounded w-full mb-2"
-          />
-          <input
-            type="text"
-            value={editingTeam.country}
-            onChange={(e) => setEditingTeam({ ...editingTeam, country: e.target.value })}
-            className="border p-2 rounded w-full mb-4"
-          />
 
-          <button
-            onClick={() => {
-              dispatch(
-                updateTeam({
-                  id: editingTeam.id,
-                  data: {
-                    name: editingTeam.name,
-                    playerCount: editingTeam.playerCount,
-                    region: editingTeam.region,
-                    country: editingTeam.country,
-                  },
-                })
-              );
-              setEditingTeam(null);
-            }}
-            className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
-          >
-            Save
-          </button>
-          <button
-            onClick={() => setEditingTeam(null)}
-            className="bg-gray-300 px-4 py-2 rounded"
-          >
-            Cancel
-          </button>
-        </div>
-      )}
-
-
-
-      {/* 🧾 Optional: Show current teams */}
-      <ul className="mt-6 space-y-2">
-        {createdTeams.map((team: Team) => (
-          <li key={team.id} className="border p-3 rounded flex items-center justify-between gap-4">
+      {/* Teams list */}
+      <ul className="mt-6 space-y-4">
+        {teams.map((team) => (
+          <li key={team.id} className="border p-4 rounded shadow flex flex-col gap-2">
             <div>
               <strong>{team.name}</strong> — {team.playerCount} players, {team.region}, {team.country}
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleEdit(team)}
-                className="text-blue-600 hover:underline"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(team.id)}
-                className="text-red-600 hover:underline"
-              >
+            <ul className="text-sm text-gray-600 list-disc list-inside">
+              {team.players?.map((p) => (
+                <li key={p.id}>
+                  {p.first_name} {p.last_name}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-4 pt-2">
+              <button onClick={() => handleEdit(team)} className='text-blue-600 hover:underline'>Edit</button>
+              <button onClick={() => handleDelete(team.id)} className="text-red-600 hover:underline">
                 Delete
               </button>
             </div>
           </li>
         ))}
       </ul>
-
     </div>
   )
 }
