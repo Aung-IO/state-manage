@@ -1,4 +1,5 @@
 "use client"
+import PlayersList from '@/components/PlayersList'
 import { logout } from '@/store/slices/authSlice'
 import { RootState } from '@/store/store'
 import { useRouter } from 'next/navigation'
@@ -25,9 +26,13 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className='flex flex-col items-center justify-center min-h-screen'>
-            <h1 className='text-2xl font-bold'>Welcome, {user}</h1>
-            <button onClick={handleLogout} className='bg-blue-500 text-white p-2 rounded'>Logout</button>
+        <div>
+            <div className='flex flex-col items-center justify-center min-h-screen'>
+                <h1 className='text-2xl font-bold'>Welcome, {user}</h1>
+                <button onClick={handleLogout} className='bg-blue-500 text-white p-2 rounded'>Logout</button>
+
+                <PlayersList />
+            </div>
         </div>
     )
 }
