@@ -64,7 +64,7 @@ export default function CreateTeamPage() {
 
   const onSubmit = (data: FormData) => {
     const selectedPlayers = allPlayers.filter((p) =>
-      selectedPlayerIds.includes(p.id.toString())
+      selectedPlayerIds.includes(p.id)
     )
 
     if (!isEditing && teams.some((t) => t.name === data.name)) {
@@ -119,7 +119,7 @@ export default function CreateTeamPage() {
   }
 
   return (
-    <div className="p-6 max-w-xl mx-auto">
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Create a Team</h1>
 
       <button
@@ -208,9 +208,12 @@ export default function CreateTeamPage() {
       )}
 
       {/* Teams list */}
-      <ul className="mt-6 space-y-4">
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.map((team) => (
-          <li key={team.id} className="border p-4 rounded shadow flex flex-col gap-2">
+          <div
+            key={team.id}
+            className="border p-4 rounded shadow flex flex-col gap-2 bg-white"
+          >
             <div>
               <strong>{team.name}</strong> — {team.playerCount} players, {team.region}, {team.country}
             </div>
@@ -222,14 +225,23 @@ export default function CreateTeamPage() {
               ))}
             </ul>
             <div className="flex gap-4 pt-2">
-              <button onClick={() => handleEdit(team)} className='text-blue-600 hover:underline'>Edit</button>
-              <button onClick={() => handleDelete(team.id)} className="text-red-600 hover:underline">
+              <button
+                onClick={() => handleEdit(team)}
+                className="text-blue-600 hover:underline"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDelete(team.id)}
+                className="text-red-600 hover:underline"
+              >
                 Delete
               </button>
             </div>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
+
     </div>
   )
 }
