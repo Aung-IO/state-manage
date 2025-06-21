@@ -11,12 +11,12 @@ async function fetchPlayers() {
   }
 }
 
-export const usePlayers = ({search = '', page = 1}) => {
+export const usePlayers = ({ search = ""}) => {
   return useQuery({
-    queryKey: ["players", search, page],
-     queryFn: async () => {
-      const res = await api.nba.getPlayers({ search, page, per_page: 10 })
-      return res
+    queryKey: ["players", search],
+    queryFn: async () => {
+      const res = await api.nba.getPlayers({ search });
+      return res.data;
     },
     staleTime: 1000 * 60 * 5,
   });

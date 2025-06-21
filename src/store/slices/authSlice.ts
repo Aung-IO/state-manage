@@ -5,7 +5,7 @@ type AuthState = {
 }
 
 const initialState : AuthState = {
-    user : typeof window !== 'undefined' ? localStorage.getItem("user") : null
+    user :  null
 }
 
 const authSlice = createSlice({
