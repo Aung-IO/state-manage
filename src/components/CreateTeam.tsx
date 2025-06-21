@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { RootState } from '@/store/store'
-import { addTeam, Team } from '@/store/slices/teamSlice'
+import { addTeam, deleteTeam, Team, updateTeam } from '@/store/slices/teamSlice'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,6 +23,7 @@ export default function CreateTeamPage() {
   const teams = useSelector((state: RootState) => state.teams)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
 
   const createdTeams = localStorage.getItem('teams')
     ? JSON.parse(localStorage.getItem('teams') || '[]')
@@ -52,6 +53,15 @@ export default function CreateTeamPage() {
     } catch (err: any) {
       setError(err.message)
     }
+  }
+  const handleDelete = (id: string) => {
+    dispatch(deleteTeam(id))
+
+  }
+
+  const handleEdit = (team: Team) => {
+    console.log('Editing team:', team);
+    setEditingTeam(team)
   }
 
   return (
@@ -128,15 +138,92 @@ export default function CreateTeamPage() {
           </form>
         </div>
       )}
+      {editingTeam && (
+        <div className="mt-4 p-4 border rounded bg-gray-50 max-w-md">
+          <h2 className="font-bold mb-2">Edit Team</h2>
+          <input
+            type="text"
+            value={editingTeam.name}
+            onChange={(e) => setEditingTeam({ ...editingTeam, name: e.target.value })}
+            className="border p-2 rounded w-full mb-2"
+          />
+          {/* Add inputs for other editable fields, e.g., playerCount, region, country */}
+          <input
+            type="number"
+            value={editingTeam.playerCount}
+            onChange={(e) =>
+              setEditingTeam({ ...editingTeam, playerCount: Number(e.target.value) })
+            }
+            className="border p-2 rounded w-full mb-2"
+          />
+          <input
+            type="text"
+            value={editingTeam.region}
+            onChange={(e) => setEditingTeam({ ...editingTeam, region: e.target.value })}
+            className="border p-2 rounded w-full mb-2"
+          />
+          <input
+            type="text"
+            value={editingTeam.country}
+            onChange={(e) => setEditingTeam({ ...editingTeam, country: e.target.value })}
+            className="border p-2 rounded w-full mb-4"
+          />
+
+          <button
+            onClick={() => {
+              dispatch(
+                updateTeam({
+                  id: editingTeam.id,
+                  data: {
+                    name: editingTeam.name,
+                    playerCount: editingTeam.playerCount,
+                    region: editingTeam.region,
+                    country: editingTeam.country,
+                  },
+                })
+              );
+              setEditingTeam(null);
+            }}
+            className="bg-blue-500 text-white px-4 py-2 rounded mr-2"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setEditingTeam(null)}
+            className="bg-gray-300 px-4 py-2 rounded"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+
 
       {/* 🧾 Optional: Show current teams */}
       <ul className="mt-6 space-y-2">
-        {createdTeams.map((team) => (
-          <li key={team.id} className="border p-3 rounded">
-            <strong>{team.name}</strong> — {team.playerCount} players, {team.region}, {team.country}
+        {createdTeams.map((team: Team) => (
+          <li key={team.id} className="border p-3 rounded flex items-center justify-between gap-4">
+            <div>
+              <strong>{team.name}</strong> — {team.playerCount} players, {team.region}, {team.country}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleEdit(team)}
+                className="text-blue-600 hover:underline"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDelete(team.id)}
+                className="text-red-600 hover:underline"
+              >
+                Delete
+              </button>
+            </div>
           </li>
         ))}
       </ul>
+
     </div>
   )
 }
