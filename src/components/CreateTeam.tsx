@@ -25,7 +25,7 @@ export default function CreateTeamPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<number[]>([])
 
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
   const isEditing = !!editingTeam
